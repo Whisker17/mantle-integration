@@ -23,7 +23,7 @@ const smartAccount = new SmartAccount(new ParticleProvider(particle.auth), {
   ...config,
   aaOptions: {
     accountContracts: {
-      simple: [
+      SIMPLE: [
         {
           chainIds: [MantleTestnet.id],
           version: "1.0.0",
