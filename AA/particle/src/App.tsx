@@ -1,99 +1,96 @@
-import React, { useState, useEffect } from "react";
-import { ParticleNetwork,UserInfo,AuthType } from "@particle-network/auth";
-import { ParticleProvider } from "@particle-network/provider";
-import { MantleTestnet } from "@particle-network/chains";
-import { AAWrapProvider, SmartAccount } from "@particle-network/aa";
-import {ethers} from 'ethers';
+import React, { useState, useEffect } from 'react';
+import { useEthereum, useConnect, useAuthCore } from '@particle-network/auth-core-modal';
+import { MantleSepoliaTestnet } from '@particle-network/chains';
+import { AAWrapProvider, SendTransactionMode, SmartAccount } from '@particle-network/aa';
+import { ethers } from 'ethers';
+import { notification } from 'antd';
 
-// Retrieved from https://dashboard.particle.network
-const config = {
-  projectId: process.env.REACT_APP_PROJECT_ID!,
-  clientKey: process.env.REACT_APP_CLIENT_KEY!,
-  appId: process.env.REACT_APP_APP_ID!,
-};
+import './App.css';
 
-const particle = new ParticleNetwork({
-  ...config,
-  chainName: MantleTestnet.name,
-  chainId: MantleTestnet.id,
-  wallet: { displayWalletEntry: true },
-});
-
-const smartAccount = new SmartAccount(new ParticleProvider(particle.auth), {
-  ...config,
-  aaOptions: {
-    accountContracts: {
-      SIMPLE: [
-        {
-          chainIds: [MantleTestnet.id],
-          version: "1.0.0",
-        },
-      ],
-    },
-  },
-});
-
-const customProvider = new ethers.providers.Web3Provider(
-  new AAWrapProvider(smartAccount),
-  "any"
-);
-
-particle.setERC4337({
-  name: "SIMPLE",
-  version: "1.0.0",
-});
+// replace yours
+// apply them from Paticle Dashboard: https://dashboard.particle.network/#/
+const REACT_APP_PROJECT_ID=""
+const REACT_APP_CLIENT_KEY=""
+//get this by creating your app in `Particle Dashboard -> Your APPs` 
+const REACT_APP_APP_ID=""
 
 const App = () => {
-  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
-  const [mntBalance, setMntBalance] = useState<string | null>(null);
+  const { provider } = useEthereum();
+  const { connect, disconnect } = useConnect();
+  const { userInfo } = useAuthCore();
+
+  const smartAccount = new SmartAccount(provider, {
+    projectId: REACT_APP_PROJECT_ID,
+    clientKey: REACT_APP_CLIENT_KEY,
+    appId: REACT_APP_APP_ID,
+    aaOptions: {
+      accountContracts: {
+        SIMPLE: [{ chainIds: [MantleSepoliaTestnet.id], version: '1.0.0' }]
+      }
+    }
+  });
+
+  const customProvider = new ethers.providers.Web3Provider(new AAWrapProvider(smartAccount, SendTransactionMode.Gasless), "any");
+  const [balance, setBalance] = useState(null);
 
   useEffect(() => {
     if (userInfo) {
-      fetchMntBalance();
+      fetchBalance();
     }
-  }, [userInfo]);
+  }, [userInfo, smartAccount, customProvider]);
 
-  const fetchMntBalance = async () => {
+  const fetchBalance = async () => {
     const address = await smartAccount.getAddress();
-    const balance = await customProvider.getBalance(address);
-    setMntBalance(ethers.utils.formatEther(balance));
+    const balanceResponse = await customProvider.getBalance(address);
+    setBalance(ethers.utils.formatEther(balanceResponse));
   };
 
-  const handleLogin = async (preferredAuthType: AuthType) => {
-    const user = !particle.auth.isLogin()
-      ? await particle.auth.login({ preferredAuthType })
-      : particle.auth.getUserInfo();
-    setUserInfo(user);
+  const handleLogin = async (authType) => {
+    if (!userInfo) {
+      await connect({
+        socialType: authType,
+        chain: MantleSepoliaTestnet,
+      });
+    }
   };
 
   const executeUserOp = async () => {
     const signer = customProvider.getSigner();
     const tx = {
       to: "0x000000000000000000000000000000000000dEaD",
-      value: ethers.utils.parseEther("0.001"),
+      value: ethers.utils.parseEther("1"),
     };
     const txResponse = await signer.sendTransaction(tx);
     const txReceipt = await txResponse.wait();
-    console.log("Transaction hash:", txReceipt.transactionHash);
+    notification.success({
+      message: txReceipt.transactionHash
+    });
   };
 
   return (
     <div className="App">
+      <div className="logo-section">
+        <img src="https://i.imgur.com/EerK7MS.png" alt="Logo 1" className="logo logo-big" />
+        <img src="https://i.imgur.com/xbvNnWD.png" alt="Logo 2" className="logo" />
+      </div>
       {!userInfo ? (
-        <div>
-          <button onClick={() => handleLogin("google")}>
+        <div className="login-section">
+          <button className="sign-button google-button" onClick={() => handleLogin('google')}>
+            <img src="https://i.imgur.com/nIN9P4A.png" alt="Google" className="icon"/>
             Sign in with Google
           </button>
-          <button onClick={() => handleLogin("twitter")}>
-            Sign in with Twitter
+          <button className="sign-button twitter-button" onClick={() => handleLogin('twitter')}>
+            <img src="https://i.imgur.com/afIaQJC.png" alt="Twitter" className="icon"/>
+            Sign in with X
           </button>
         </div>
       ) : (
-        <div>
+        <div className="profile-card">
           <h2>{userInfo.name}</h2>
-          <div>
-            <small>{mntBalance} MNT</small>
-            <button onClick={executeUserOp}>Execute User Operation</button>
+          <div className="balance-section">
+            <small>{balance} MNT</small>
+            <button className="sign-message-button" onClick={executeUserOp}>Execute User Operation</button>
+            <button className="disconnect-button" onClick={disconnect}>Logout</button>
           </div>
         </div>
       )}

@@ -1,5 +1,7 @@
+"use client";
+
 import React from "react";
-import { PrimeSdk } from "@etherspot/prime-sdk";
+import { PrimeSdk, EtherspotBundler } from "@etherspot/prime-sdk";
 import { ethers } from "ethers";
 import "./App.css";
 
@@ -11,6 +13,8 @@ const App = () => {
     "0x0000000000000000000000000000000000000000"
   );
   const [eoaPrivateKey, setEoaPrivateKey] = React.useState("");
+  const bundlerApiKey =
+    "eyJvcmciOiI2NTIzZjY5MzUwOTBmNzAwMDFiYjJkZWIiLCJpZCI6IjMxMDZiOGY2NTRhZTRhZTM4MGVjYjJiN2Q2NDMzMjM4IiwiaCI6Im11cm11cjEyOCJ9";
 
   const generateRandomEOA = async () => {
     // Create random EOA wallet
@@ -23,7 +27,10 @@ const App = () => {
     // Initialise Etherspot SDK
     const primeSdk = new PrimeSdk(
       { privateKey: eoaPrivateKey },
-      { chainId: 5001, projectKey: "" }
+      {
+        chainId: 5000,
+        bundlerProvider: new EtherspotBundler(5000, bundlerApiKey),
+      }
     );
     const address = await primeSdk.getCounterFactualAddress();
     setEtherspotWalletAddress(address);
@@ -45,7 +52,7 @@ const App = () => {
       </button>
       <a
         target="_blank"
-        href={"https://explorer.testnet.mantle.xyz/address/" + eoaWalletAddress}
+        href={"https://mantlescan.info/address/" + eoaWalletAddress}
       >
         KBW Address: {eoaWalletAddress}
       </a>
@@ -60,10 +67,7 @@ const App = () => {
       </button>
       <a
         target="_blank"
-        href={
-          "https://explorer.testnet.mantle.xyz/address/" +
-          etherspotWalletAddress
-        }
+        href={"https://mantlescan.info/address/" + etherspotWalletAddress}
       >
         Etherspot Smart Account Address: {etherspotWalletAddress}
       </a>
